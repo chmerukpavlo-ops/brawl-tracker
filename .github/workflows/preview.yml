@@ -58,7 +58,7 @@ jobs:
 
       - name: Comment preview URL on PR
         if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: preview-deploy
           message: |
@@ -93,7 +93,7 @@ jobs:
           working-directory: ./
       - name: Comment preview URL on PR
         if: success()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: preview-deploy
           message: |
