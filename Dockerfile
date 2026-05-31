@@ -7,21 +7,21 @@
 # Stage 3 (run):   slim Alpine image with prod deps + dist/ only.
 # ─────────────────────────────────────────────────────────────────
 
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 # `--ignore-scripts` skips husky/postinstall hooks that don't make
 # sense inside the build sandbox.
 RUN npm ci --ignore-scripts
 
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Vite + esbuild emit `dist/` (frontend) and `dist/server.cjs` (backend).
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3001
