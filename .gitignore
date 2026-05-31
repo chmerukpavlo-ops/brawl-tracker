@@ -1,0 +1,40 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Test artifacts
+playwright-report/
+test-results/
+playwright/.cache/
+.vitest-cache/
+
+# Lighthouse / audit artifacts
+.lighthouseci/
+lighthouse-report.html
+
+# Deploy tooling caches
+.vercel/
+.wrangler/
+.fly/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Husky (when contributors opt in — see CONTRIBUTING.md)
+.husky/_/
+
+# Storybook build output — published to GitHub Pages from CI, not committed.
+storybook-static/
+
+# Chromatic uploads (if/when we wire it up)
+chromatic-build-*/
+
+# Generated changelog from semantic-release (when used) — keep tracked
+# but don't ignore; commenting here so future-you doesn't add it back.

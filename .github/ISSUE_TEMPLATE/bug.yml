@@ -1,0 +1,75 @@
+name: 🐛 Bug Report
+description: Повідомити про помилку у застосунку
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Дякуємо, що знайшов час повідомити баг! Кілька питань нижче допоможуть швидше його відтворити.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Опис
+      description: Що сталося? Чим це відрізняється від очікуваного?
+      placeholder: Натиснув "Оновити" — застосунок зависає на 5 секунд.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Кроки відтворення
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Очікувана поведінка
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Пристрій
+      options:
+        - iPhone (iOS Safari)
+        - Android (Chrome)
+        - Desktop Chrome
+        - Desktop Safari
+        - Desktop Firefox
+        - Інше
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Браузер + версія
+      placeholder: Chrome 130, Safari 17.4 …
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Версія застосунку
+      description: Дивись у Налаштуваннях → Про застосунок (або в URL після `?v=`).
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Скріншоти / відео
+      description: Перетягни сюди файли якщо є.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Перевірив
+      options:
+        - label: Я переглянув існуючі issues і не знайшов дубліката.
+          required: true
+        - label: Я не вмикаю CI / E2E знову, поки не виправлю.

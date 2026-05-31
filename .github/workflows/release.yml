@@ -1,0 +1,50 @@
+name: Release
+
+# semantic-release driven version + changelog + GitHub Release.
+# Disabled by default (set `vars.SEMANTIC_RELEASE_ENABLED=true` to
+# turn on). Requires Conventional Commits — see CONTRIBUTING.md.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: semantic-release
+    if: vars.SEMANTIC_RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # semantic-release walks the full git history to determine
+          # the next version number — shallow clones break it.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx --yes \
+            -p semantic-release@^24 \
+            -p @semantic-release/changelog@^6 \
+            -p @semantic-release/git@^10 \
+            -p conventional-changelog-conventionalcommits@^7 \
+            semantic-release

@@ -1,0 +1,43 @@
+name: ✨ Feature Request
+description: Запропонувати нову функцію або покращення
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Проблема
+      description: Який сценарій зараз не покритий або працює погано?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Пропозиція
+      description: Як ти бачиш рішення? Опиши UX, API або поведінку.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Альтернативи, які ти розглядав
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Пріоритет з твого боку
+      options:
+        - "Маю обхід — некритично"
+        - "Заважає, але живу з цим"
+        - "Блокує мій основний use-case"
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Перевірив
+      options:
+        - label: Я переглянув roadmap і існуючі issues.
+          required: true

@@ -1,0 +1,31 @@
+# GitHub CODEOWNERS — automatic review assignment.
+# Replace `@your-org/maintainers` with the actual GitHub team or user
+# once the project moves to its real org. Until then the wildcard is
+# the safest default (no enforced reviewer block on first PRs).
+
+# Default owner for everything in the repo
+*                                      @your-org/maintainers
+
+# Backend / proxy server
+/server.ts                             @your-org/backend
+/Dockerfile                            @your-org/backend
+/fly.toml                              @your-org/backend
+
+# CI / release / infra
+/.github/                              @your-org/maintainers
+/.releaserc.json                       @your-org/maintainers
+/DEPLOYMENT.md                         @your-org/maintainers
+
+# Telemetry, privacy-sensitive code
+/src/lib/telemetry.ts                  @your-org/security
+/src/lib/anonId.ts                     @your-org/security
+/src/lib/telemetryConsent.ts           @your-org/security
+/PRIVACY.md                            @your-org/security
+/OBSERVABILITY.md                      @your-org/security
+
+# AI / Gemini integration
+/src/components/ai/                    @your-org/ai
+/src/data/aiPrompts.ts                 @your-org/ai
+
+# i18n
+/src/i18n/                             @your-org/maintainers

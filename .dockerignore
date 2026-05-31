@@ -1,0 +1,29 @@
+# Files that should never end up inside the Docker image.
+# Order matches the typical impact: biggest savings first.
+node_modules
+dist
+coverage
+playwright-report
+test-results
+.git
+.github
+.husky
+.vscode
+.idea
+.env
+.env.*
+!.env.example
+*.log
+*.md
+!README.md
+.DS_Store
+Thumbs.db
+.vercel
+.wrangler
+.lighthouseci
+e2e
+src/**/*.test.ts
+src/**/*.test.tsx
+src/**/*.spec.ts
+src/**/*.spec.tsx
+src/test

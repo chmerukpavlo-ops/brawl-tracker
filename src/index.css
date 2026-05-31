@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: #1a0a2e;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── Accessibility ─────────────────────────────────────────────────
+   Global rules that respect user preferences and provide a consistent
+   keyboard / high-contrast experience. Component-level overrides via
+   Tailwind utilities take precedence.
+   ────────────────────────────────────────────────────────────────── */
+
+/* `:focus` (mouse/pointer) is intentionally suppressed by browsers,
+   but `:focus-visible` (keyboard / programmatic focus) needs a strong,
+   self-contrast outline. Using `outline` (not `box-shadow`) so it
+   survives `overflow: hidden` parents. */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #facc15;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Force reduced motion when the user explicitly asks for it (in
+   Settings → Accessibility) OR the OS signals it. The `data-` toggle
+   is set by `useReducedMotion`. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High-contrast palette. Activated either by the OS
+   (`prefers-contrast: more`) or by the user toggle in Settings, which
+   sets `<html data-contrast="more">`. We override the most common
+   slate/violet tones with full-saturation equivalents — text becomes
+   pure white on a near-black background, focus rings get bumped to
+   3px and use a colour with > 7:1 contrast against any background. */
+@media (prefers-contrast: more) {
+  *:focus-visible {
+    outline-width: 3px;
+    outline-color: #ffffff;
+    box-shadow: 0 0 0 3px #000000;
+  }
+}
+
+html[data-contrast="more"] {
+  /* Boosted text + UI tokens. We don't rebuild the entire palette —
+     just the elements most readers struggle with. The rest of the UI
+     stays in the gaming palette but reads with crisp focus rings. */
+  --color-fg-strong: #ffffff;
+  --color-fg-muted: #e2e8f0;
+  --color-bg: #0a0510;
+  --color-bg-card: #1a0a2e;
+  --color-border: #ffffff;
+}
+
+html[data-contrast="more"] *:focus-visible {
+  outline-width: 3px;
+  outline-color: #ffffff;
+  box-shadow: 0 0 0 3px #000000;
+}
+
+/* Borders inherit the high-contrast colour so cards, dividers, and
+   form fields all read with sharp edges. */
+html[data-contrast="more"] [class*="border-white/"] {
+  border-color: var(--color-border) !important;
+}
+
+/* ─── Optional dyslexia-friendly font stack ─────────────────────────
+   Toggled in Settings. We don't ship a custom typeface (no extra
+   download); we swap in the most readable system fallbacks
+   recommended by the British Dyslexia Association. */
+html[data-font-mode="dyslexic"] {
+  --font-sans: "OpenDyslexic", "Atkinson Hyperlegible", "Lexie Readable",
+    "Comic Sans MS", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ─── Skip link visibility ──────────────────────────────────────────
+   Tailwind 4 supports `not-sr-only` already, but the focus-visible
+   variant occasionally lags behind in older versions. Belt-and-braces:
+   force the link into view whenever it's keyboard-focused. */
+.sr-only:focus,
+.sr-only:focus-visible {
+  position: fixed;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+}

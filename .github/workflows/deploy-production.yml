@@ -1,0 +1,164 @@
+name: Deploy Production
+
+# Production deploy on push to main. Two independent jobs:
+#   - frontend → Cloudflare Pages (or your platform of choice)
+#   - backend  → Fly.io (or your platform of choice)
+#
+# Both are gated on repo-level `vars.*` so a fresh repo without
+# infrastructure provisioned simply skips the deploy steps and the
+# workflow stays green.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never cancel a production deploy mid-flight.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── Frontend → Cloudflare Pages ─────────────────────────────────
+  frontend:
+    name: Frontend
+    if: vars.DEPLOY_TARGET == 'cloudflare'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_FRONTEND_URL }}
+    # Job-level env so downstream `if: env.X != ''` checks can see the
+    # value. Step-level env isn't visible to that step's own `if:`.
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN_PROD }}
+          VITE_APP_VERSION: ${{ github.sha }}
+          NODE_ENV: production
+
+      - name: Upload sourcemaps to Sentry
+        # Skip if Sentry isn't wired up yet — useful for fresh repos.
+        if: env.SENTRY_AUTH_TOKEN != ''
+        run: npm run sentry:sourcemaps
+        env:
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'brawl-tracker' }} --branch=main
+
+      - name: Notify Sentry of release
+        if: env.SENTRY_AUTH_TOKEN != ''
+        run: |
+          npx --yes @sentry/cli releases new "${{ github.sha }}"
+          npx --yes @sentry/cli releases set-commits "${{ github.sha }}" --auto || true
+          npx --yes @sentry/cli releases finalize "${{ github.sha }}"
+          npx --yes @sentry/cli releases deploys "${{ github.sha }}" new -e production
+
+      - name: Smoke test (frontend)
+        if: vars.PRODUCTION_FRONTEND_URL != ''
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_FRONTEND_URL }}")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "304" ]; then
+              echo "Frontend reachable (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Frontend smoke test failed"
+          exit 1
+
+  # ─── Backend → Fly.io ────────────────────────────────────────────
+  backend:
+    name: Backend (Fly.io)
+    if: vars.BACKEND_TARGET == 'fly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production-api
+      url: ${{ vars.PRODUCTION_BACKEND_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy to Fly
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Smoke test (backend)
+        if: vars.PRODUCTION_BACKEND_URL != ''
+        run: |
+          set -e
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.PRODUCTION_BACKEND_URL }}/api/health")
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend healthy (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Backend health check failed"
+          exit 1
+
+  # ─── Notification (optional Slack) ───────────────────────────────
+  notify:
+    name: Notify Slack
+    if: always() && vars.SLACK_NOTIFICATIONS == 'true'
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize
+        id: summary
+        run: |
+          FE="${{ needs.frontend.result || 'skipped' }}"
+          BE="${{ needs.backend.result || 'skipped' }}"
+          STATUS="success"
+          if [ "$FE" = "failure" ] || [ "$BE" = "failure" ]; then
+            STATUS="failure"
+          fi
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "frontend=$FE" >> $GITHUB_OUTPUT
+          echo "backend=$BE" >> $GITHUB_OUTPUT
+      - uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ steps.summary.outputs.status }}
+          fields: repo,message,commit,author,workflow
+          custom_payload: |
+            {
+              "text": "Production deploy ${{ steps.summary.outputs.status }}",
+              "attachments": [{
+                "color": "${{ steps.summary.outputs.status == 'success' && 'good' || 'danger' }}",
+                "fields": [
+                  { "title": "Frontend", "value": "${{ steps.summary.outputs.frontend }}", "short": true },
+                  { "title": "Backend",  "value": "${{ steps.summary.outputs.backend }}",  "short": true },
+                  { "title": "Commit",   "value": "${{ github.sha }}", "short": false }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

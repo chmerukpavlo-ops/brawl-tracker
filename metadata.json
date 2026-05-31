@@ -1,0 +1,6 @@
+{
+  "name": "Brawl Stars Tracker",
+  "description": "Мобільний трекер статистики гравців Brawl Stars із проксі-сервером та детальною інформацією про кубки, бравлерів та перемоги.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

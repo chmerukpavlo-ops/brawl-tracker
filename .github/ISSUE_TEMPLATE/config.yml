@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Запитання / обговорення
+    url: https://github.com/your-org/brawl-stars-tracker/discussions
+    about: Питання про use-case, найкращі практики або roadmap — у Discussions, не в issues.
+  - name: 🔒 Звіт про вразливість
+    url: https://github.com/your-org/brawl-stars-tracker/security/advisories/new
+    about: НЕ створюй публічний issue. Використай GitHub Security Advisories.

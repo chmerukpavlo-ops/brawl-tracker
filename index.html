@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a0a2e" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Brawl Stats Tracker — статистика гравців Brawl Stars з AI-аналізом, лідербордом і closed-zone offline режимом." />
+
+    <!-- Apple PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Brawl Stats" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+    <!-- Brawler artwork loads from Brawlify CDN — open the connection
+         early so the first <img> doesn't pay the TLS handshake cost. -->
+    <link rel="preconnect" href="https://cdn.brawlify.com" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.brawlify.com" />
+
+    <title>Brawl Stats Tracker</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

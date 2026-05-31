@@ -1,0 +1,79 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Docs/Introduction" />
+
+# Brawl Stars Tracker — UI Kit
+
+Це Storybook для документації UI компонентів та design tokens
+застосунку **Brawl Stars Tracker**.
+
+> Створено зі Storybook 10 + Vite. React 19, Tailwind 4. Mobile-first.
+
+## Що тут є
+
+- **Design Tokens** — кольори, типографіка, spacing.
+  Палітра, font scale, radius — у вигляді живих swatches.
+- **UI Primitives** — Skeleton, EmptyState, RarityBadge.
+  Низькорівневі будівельні блоки, які використовуються повсюди.
+- **Features** — BrawlerCard.
+  Composed components зі справжніми Brawlify-фікстурами.
+
+## Toolbar
+
+| Контрол           | Призначення                                                |
+| ----------------- | ---------------------------------------------------------- |
+| 🌐 **Locale**     | Перемикач UA / EN. Викликає `setLocale()` всередині stories. |
+| 🌗 **Theme**      | `default` / `high-contrast` — вмикає `<html data-contrast="more">`. |
+| 📱 **Viewport**   | iPhone SE / 13 / Pixel / iPad / Desktop.                   |
+| ♿ **A11y**       | Axe-core ран на кожен render. Вкладка `Accessibility` показує violations. |
+| 🎛 **Controls**  | Інтерактивні props per story.                              |
+| 🔍 **Backgrounds** | Фон canvas — для перевірки контрасту.                     |
+
+## Як писати нові stories
+
+1. Тримай файл поруч із компонентом: `MyComponent.stories.tsx` поруч
+   із `MyComponent.tsx`.
+2. Використовуй типи з `@storybook/react-vite`:
+
+   ```tsx
+   import type { Meta, StoryObj } from "@storybook/react-vite";
+
+   const meta: Meta<typeof MyComponent> = {
+     title: "UI Primitives/MyComponent",
+     component: MyComponent,
+     tags: ["autodocs"],
+   };
+   export default meta;
+   type Story = StoryObj<typeof MyComponent>;
+   ```
+
+3. Подавай fixture-дані з `src/test/fixtures/*` — те ж саме, що
+   `vitest` суїти, без дублювання.
+4. Для action-spy використовуй `import { fn } from "storybook/test"`.
+5. Якщо story залежить від API → дочекайся MSW addon (roadmap у
+   `STORYBOOK.md`).
+
+## Що **не** входить у scope
+
+- Production bundle: stories виключені з продакшн збірки.
+- Интеграційні / e2e тести: вони живуть у `vitest` + `playwright`.
+- Дизайн-система як окремий npm package: компоненти живуть у моноорепі.
+
+## Команди
+
+```bash
+npm run storybook          # http://localhost:6006
+npm run build-storybook    # → storybook-static/
+```
+
+CI деплоїть на GitHub Pages після кожного merge у `main` — див.
+`.github/workflows/storybook-deploy.yml`.
+
+## Більше довідки
+
+- [`STORYBOOK.md`](https://github.com/brawl-stars-tracker/blob/main/STORYBOOK.md)
+  — workflow, naming, deploy.
+- [`ACCESSIBILITY.md`](https://github.com/brawl-stars-tracker/blob/main/ACCESSIBILITY.md)
+  — a11y standards (WCAG 2.2 AA).
+- [`CONTRIBUTING.md`](https://github.com/brawl-stars-tracker/blob/main/CONTRIBUTING.md)
+  — як надсилати PR.

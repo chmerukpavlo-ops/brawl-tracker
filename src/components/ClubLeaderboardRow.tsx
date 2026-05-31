@@ -1,0 +1,158 @@
+import { forwardRef, useCallback, useState } from "react";
+import { Crown, Trophy, Users } from "lucide-react";
+import { motion } from "motion/react";
+import type { ClubRanking } from "../types";
+import ClubBadge from "./ClubBadge";
+import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
+import { haptic } from "../hooks/useHaptic";
+import { useLongPress } from "../hooks/useLongPress";
+import { highlightSubstring } from "../utils/highlightText";
+import { useI18n } from "../context/I18nContext";
+
+interface ClubLeaderboardRowProps {
+  ranking: ClubRanking;
+  isMyClub?: boolean;
+  isFavorite?: boolean;
+  onTap: (ranking: ClubRanking) => void;
+  contextItems?: ContextMenuItem[];
+  /** Optional substring to highlight in the club name. */
+  highlight?: string;
+  /** When true, brief glow pulse to draw attention. */
+  pulse?: boolean;
+}
+
+function rankBadgeStyle(rank: number): string {
+  if (rank === 1) {
+    return "bg-gradient-to-br from-[#facc15] to-[#eab308] text-[#1a0a2e] shadow-[0_0_20px_rgba(250,204,21,0.45)]";
+  }
+  if (rank === 2) return "bg-slate-300 text-[#1a0a2e]";
+  if (rank === 3) return "bg-gradient-to-br from-amber-700 to-amber-800 text-white";
+  if (rank <= 10) return "bg-[#facc15]/15 text-[#facc15] ring-1 ring-[#facc15]/30";
+  if (rank <= 50) return "bg-[#7c3aed]/20 text-[#c4b5fd] ring-1 ring-[#7c3aed]/30";
+  return "bg-white/5 text-slate-300";
+}
+
+function memberCountStyle(count: number): string {
+  if (count >= 30) return "text-emerald-300";
+  if (count < 10) return "text-rose-300";
+  return "text-[#facc15]";
+}
+
+const ClubLeaderboardRow = forwardRef<HTMLDivElement, ClubLeaderboardRowProps>(
+  function ClubLeaderboardRow(
+    { ranking, isMyClub, isFavorite, onTap, contextItems, highlight, pulse },
+    ref
+  ) {
+    const { formatNumber } = useI18n();
+    const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+    const longPress = useLongPress(
+      useCallback(
+        (pos: { clientX: number; clientY: number }) => {
+          if (!contextItems || contextItems.length === 0) return;
+          haptic.medium();
+          setAnchor({ x: pos.clientX, y: pos.clientY });
+        },
+        [contextItems]
+      )
+    );
+
+    const handleClick = () => {
+      if (anchor) return;
+      haptic.light();
+      onTap(ranking);
+    };
+
+    const highlightStyle = isMyClub
+      ? "border-[#facc15] bg-[#facc15]/10 ring-2 ring-[#facc15]/30 shadow-[0_0_20px_rgba(250,204,21,0.18)]"
+      : isFavorite
+        ? "border-[#a78bfa]/50 bg-[#7c3aed]/10"
+        : "border-white/10 bg-[#2a1a4a]";
+
+    return (
+      <div ref={ref}>
+        <motion.button
+          type="button"
+          layout
+          onClick={handleClick}
+          {...longPress}
+          style={{ touchAction: "manipulation", WebkitUserSelect: "none" }}
+          whileTap={{ scale: 0.98 }}
+          animate={
+            pulse
+              ? {
+                  boxShadow: [
+                    "0 0 0 rgba(250,204,21,0)",
+                    "0 0 24px rgba(250,204,21,0.6)",
+                    "0 0 0 rgba(250,204,21,0)",
+                  ],
+                }
+              : undefined
+          }
+          transition={pulse ? { duration: 1.4, repeat: 1 } : undefined}
+          className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${highlightStyle}`}
+          aria-label={`Клуб ${ranking.name} на ${ranking.rank} позиції з ${ranking.trophies} кубками`}
+        >
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-black tabular-nums ${rankBadgeStyle(
+              ranking.rank
+            )}`}
+          >
+            {ranking.rank === 1 ? (
+              <Crown className="h-4 w-4 fill-current" />
+            ) : (
+              `#${ranking.rank}`
+            )}
+          </span>
+
+          <ClubBadge
+            club={{ name: ranking.name, badgeId: ranking.badgeId, type: "open" }}
+            size="sm"
+          />
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate text-sm font-black uppercase text-white">
+                {highlight
+                  ? highlightSubstring(ranking.name, highlight)
+                  : ranking.name}
+              </p>
+              {isMyClub && (
+                <span className="shrink-0 rounded-full bg-[#facc15] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-[#1a0a2e]">
+                  мій
+                </span>
+              )}
+            </div>
+            <div className="mt-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest">
+              <Users
+                className={`h-3 w-3 ${memberCountStyle(ranking.memberCount)}`}
+              />
+              <span className={memberCountStyle(ranking.memberCount)}>
+                {ranking.memberCount}/30
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="truncate text-slate-500">{ranking.tag}</span>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Trophy className="h-3.5 w-3.5 text-[#facc15]" />
+            <span className="text-sm font-black tabular-nums text-[#facc15]">
+              {formatNumber(ranking.trophies)}
+            </span>
+          </div>
+        </motion.button>
+
+        {contextItems && contextItems.length > 0 && (
+          <ContextMenu
+            open={!!anchor}
+            anchor={anchor}
+            items={contextItems}
+            onClose={() => setAnchor(null)}
+          />
+        )}
+      </div>
+    );
+  }
+);
+
+export default ClubLeaderboardRow;

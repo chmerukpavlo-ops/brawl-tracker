@@ -1,0 +1,34 @@
+/**
+ * Storybook-only style overrides.
+ *
+ * The app uses a fixed-width 430 px shell, but most stories are
+ * isolated components rendered inside Storybook's centered docs
+ * canvas. We unset that constraint so cards / sheets render at
+ * natural width and don't squish.
+ *
+ * Also: `:focus-visible` rings from `index.css` look great in the
+ * app but bleed past Storybook's docs container — clip them.
+ */
+
+#storybook-root {
+  background: transparent;
+  color: #e2e8f0;
+}
+
+/* Component canvas needs a tiny bit of breathing room so shadows
+   and focus rings render without clipping. */
+.sb-show-main.sb-main-centered #storybook-root {
+  padding: 1.5rem;
+}
+
+/* Docs page background — match the app's near-black violet so
+   token swatches read correctly. */
+.sb-show-main.sb-main-padded {
+  background: #1a0a2e;
+}
+
+/* Hide ScreenSkeleton's outer page chrome inside docs — it
+   defaults to 100vh which dominates the layout. */
+.sbdocs-content [data-storybook-isolated="true"] {
+  min-height: auto;
+}

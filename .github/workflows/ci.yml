@@ -1,0 +1,134 @@
+name: CI
+
+# Fast-feedback loop. Heavier checks (e2e, security, lighthouse) live
+# in their own workflows so a typo in CSS doesn't wait on Playwright.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Lock to one run per ref + workflow. New pushes cancel the previous
+# in-flight run because feedback on the latest commit is what matters.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Default permissions are read-only; individual jobs opt-in to writes.
+permissions:
+  contents: read
+
+jobs:
+  # ─── Type-check + ESLint-via-tsc ─────────────────────────────────
+  lint:
+    name: Lint & typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: TypeScript (tsc --noEmit)
+        run: npm run typecheck
+
+  # ─── Unit + integration tests with coverage ──────────────────────
+  test:
+    name: Unit + integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Vitest with coverage
+        run: npm run test:coverage -- --reporter=default
+      - name: Upload coverage to Codecov
+        # Soft-fail: missing token is fine on forks / first run.
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+
+  # ─── Production build + bundle-size budget ────────────────────────
+  build:
+    name: Build & bundle budget
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Build (frontend + server)
+        run: npm run build
+        env:
+          # Sentry DSN is intentionally absent from CI builds — Sentry
+          # is lazy-loaded only when consent is granted, so omitting
+          # the DSN here lets the bundler tree-shake it entirely.
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      # 250 KB gzipped is the target for the eager (index) chunk.
+      # Lazy chunks (encyclopedia, settings, etc.) are off-budget.
+      - name: Bundle size budget
+        run: |
+          set -e
+          MAX_GZ=$((250 * 1024))
+          # Vite emits index-<hash>.js + index-<hash>.js.gz via
+          # vite-plugin-compression.
+          INDEX_GZ=$(ls dist/assets/index-*.js.gz 2>/dev/null | head -n 1)
+          if [ -z "$INDEX_GZ" ]; then
+            echo "::warning::No gzipped index bundle found — skipping budget check"
+            exit 0
+          fi
+          ACTUAL=$(stat -c %s "$INDEX_GZ" 2>/dev/null || stat -f %z "$INDEX_GZ")
+          echo "Index bundle (gz): $ACTUAL bytes / budget $MAX_GZ"
+          if [ "$ACTUAL" -gt "$MAX_GZ" ]; then
+            echo "::error::Index bundle exceeds 250 KB gzipped budget ($ACTUAL > $MAX_GZ)"
+            exit 1
+          fi
+
+      - name: Upload dist/
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+  # ─── Aggregate status check ──────────────────────────────────────
+  # Single required check name for branch protection — easier to manage
+  # than asking reviewers to keep N individual job names in sync.
+  ci:
+    name: CI
+    needs: [lint, test, build]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Verify all required jobs succeeded
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] \
+             || [ "${{ needs.test.result }}" != "success" ] \
+             || [ "${{ needs.build.result }}" != "success" ]; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All required CI jobs passed."

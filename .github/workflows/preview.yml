@@ -1,0 +1,123 @@
+name: Preview Deploy
+
+# Per-PR preview deployment. Disabled by default so a fresh fork
+# doesn't trigger a failed deploy on its first PR; opt in by setting
+# the repository variable `DEPLOY_TARGET=cloudflare` (or `vercel`).
+#
+#   Settings → Secrets and variables → Actions → Variables
+#     DEPLOY_TARGET = cloudflare
+#   + the matching secrets below.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+jobs:
+  cloudflare:
+    name: Cloudflare Pages preview
+    if: vars.DEPLOY_TARGET == 'cloudflare'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    outputs:
+      # Surfaced so downstream jobs (e.g. Lighthouse) can audit the
+      # freshly-deployed URL.
+      deployment-url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN_DEV }}
+          VITE_APP_VERSION: pr-${{ github.event.number }}-${{ github.sha }}
+
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Branch name kept under the 28-char Cloudflare limit;
+          # `pr-<number>` keeps it short and unique.
+          command: pages deploy ./dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'brawl-tracker' }} --branch=pr-${{ github.event.number }}
+
+      - name: Comment preview URL on PR
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🚀 **Preview deployment ready**
+
+            - URL: ${{ steps.deploy.outputs.deployment-url }}
+            - Commit: `${{ github.sha }}`
+            - Workflow: [run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+  vercel:
+    name: Vercel preview
+    if: vars.DEPLOY_TARGET == 'vercel'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Deploy to Vercel
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+      - name: Comment preview URL on PR
+        if: success()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-deploy
+          message: |
+            🚀 **Preview deployment ready** (Vercel)
+
+            - URL: ${{ steps.deploy.outputs.preview-url }}
+            - Commit: `${{ github.sha }}`
+
+  # ─── Lighthouse CI on the preview URL (any platform) ─────────────
+  lighthouse:
+    name: Lighthouse audit
+    if: vars.LIGHTHOUSE_ENABLED == 'true'
+    needs: [cloudflare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: ${{ needs.cloudflare.outputs.deployment-url }}
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: ./.lighthouserc.json
