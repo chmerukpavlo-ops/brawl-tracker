@@ -369,11 +369,74 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [updateButtonState]);
 
+  // ── Latest-values bridge for `handleQuery` ─────────────────────────────
+  // `handleQuery` reads a lot of outer-scope state and hooks (mutations,
+  // notifications API, pinned-players facade, toast helpers…). Some of
+  // those (`useMutation`, `usePinnedPlayers`, `useNotifications`) return
+  // a *new object reference on every render*, so keeping them in the
+  // `useCallback` deps array would rebuild `handleQuery` on every render.
+  //
+  // That instability propagated into every effect that listed
+  // `handleQuery` in its deps (notably `DeepLinkController` and the
+  // bootstrap effect below), causing redundant — and in some real-world
+  // races, runaway — fetches against the proxy server.
+  //
+  // The fix: route every read through a single `latestRef` updated after
+  // each commit. `handleQuery` becomes truly stable (`useCallback(..., [])`),
+  // and downstream effects fire only when *their own* deps change.
+  const latestRef = useRef({
+    playerData,
+    isDemoMode,
+    pinned,
+    notifications,
+    searchPlayer,
+    addFavorite,
+    isMyPlayer,
+    isFavorite,
+    updateFavorite,
+    saveToHistory,
+    showRecord,
+    showError,
+    showInfo,
+  });
+  useEffect(() => {
+    latestRef.current = {
+      playerData,
+      isDemoMode,
+      pinned,
+      notifications,
+      searchPlayer,
+      addFavorite,
+      isMyPlayer,
+      isFavorite,
+      updateFavorite,
+      saveToHistory,
+      showRecord,
+      showError,
+      showInfo,
+    };
+  });
+
   const handleQuery = useCallback(
     async (
       targetTag: string,
       options?: HandleQueryOptions
     ): Promise<boolean> => {
+      const {
+        playerData,
+        isDemoMode,
+        pinned,
+        notifications,
+        searchPlayer,
+        addFavorite,
+        isMyPlayer,
+        isFavorite,
+        updateFavorite,
+        saveToHistory,
+        showRecord,
+        showError,
+        showInfo,
+      } = latestRef.current;
       const cleanTag = targetTag.toUpperCase().trim().replace("#", "");
       if (!cleanTag) return false;
       const formattedTag = `#${cleanTag}`;
@@ -592,22 +655,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setIsRefreshing(false);
       }
     },
-    [
-      isDemoMode,
-      playerData?.highestTrophies,
-      playerData?.trophies,
-      saveToHistory,
-      isFavorite,
-      isMyPlayer,
-      updateFavorite,
-      addFavorite,
-      showRecord,
-      showError,
-      showInfo,
-      pinned,
-      notifications,
-      searchPlayer,
-    ]
+    // Intentionally empty: every dynamic value `handleQuery` needs is
+    // read through `latestRef.current` above, which is refreshed after
+    // every commit. Keeping deps empty makes `handleQuery` referentially
+    // stable so consumer `useEffect`s don't ping-pong (see fetch-loop
+    // post-mortem in the comment above `latestRef`).
+    []
   );
 
   const refreshPlayer = useCallback(async () => {
@@ -855,6 +908,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // One-shot bootstrap. Fires the moment health is known + we know
+  // which tag to load (URL > myPlayer > demo). `handleQuery` is omitted
+  // from the deps array on purpose: it's stabilized via `latestRef`
+  // and listing it would only widen the window for redundant fetches
+  // without changing behavior. The `initialized` guard makes this
+  // effect a true once-per-mount operation.
   useEffect(() => {
     if (!healthReady || initialized) return;
     setInitialized(true);
@@ -886,7 +945,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     } else {
       handleQuery(tag, { navigateHome: false });
     }
-  }, [healthReady, initialized, handleQuery, myPlayer.tag]);
+    // `handleQuery` intentionally omitted — stable via `latestRef`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [healthReady, initialized, myPlayer.tag]);
 
   const savedTag = myPlayer.tag;
   const setSavedTag = useCallback(

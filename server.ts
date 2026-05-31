@@ -49,6 +49,7 @@ import { buildPromptVariables, fillTemplate } from "./src/utils/promptBuilder";
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
+  const BRAWL_API_BASE = process.env.BRAWL_API_BASE || "https://api.brawlstars.com/v1";
 
   app.use(express.json());
 
@@ -118,7 +119,7 @@ async function startServer() {
 
     // Заміна '#' на '%23' для запиту на офіційне API Supercell
     const apiTag = cleanTag.replace("#", "%23");
-    const apiUrl = `https://api.brawlstars.com/v1/players/${apiTag}`;
+    const apiUrl = `${BRAWL_API_BASE}/players/${apiTag}`;
 
     try {
       console.log(`[Proxy API] Надсилаємо запит до Brawl Stars API: ${apiUrl}`);
@@ -205,7 +206,7 @@ async function startServer() {
     }
 
     const apiTag = cleanTag.replace("#", "%23");
-    const apiUrl = `https://api.brawlstars.com/v1/players/${apiTag}/battlelog`;
+    const apiUrl = `${BRAWL_API_BASE}/players/${apiTag}/battlelog`;
     try {
       const apiResponse = await fetch(apiUrl, {
         method: "GET",
@@ -293,7 +294,7 @@ async function startServer() {
     }
 
     const apiTag = cleanTag.replace("#", "%23");
-    const apiUrl = `https://api.brawlstars.com/v1/clubs/${apiTag}`;
+    const apiUrl = `${BRAWL_API_BASE}Tag}`;
 
     try {
       console.log(`[Proxy API] Запит до Brawl Stars API: ${apiUrl}`);
@@ -396,7 +397,7 @@ async function startServer() {
         });
       }
 
-      const apiUrl = `https://api.brawlstars.com/v1/rankings/${country}/players`;
+      const apiUrl = `${BRAWL_API_BASE}/rankings/${country}/players`;
       try {
         console.log(`[Proxy API] Лідерборд (${country}) → ${apiUrl}`);
         const apiResponse = await fetch(apiUrl, {
@@ -514,7 +515,7 @@ async function startServer() {
         });
       }
 
-      const apiUrl = `https://api.brawlstars.com/v1/rankings/${country}/clubs`;
+      const apiUrl = `${BRAWL_API_BASE}/rankings/${country}/clubs`;
       try {
         console.log(`[Proxy API] Лідерборд клубів (${country}) → ${apiUrl}`);
         const apiResponse = await fetch(apiUrl, {

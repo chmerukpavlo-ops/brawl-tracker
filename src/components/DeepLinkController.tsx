@@ -52,13 +52,29 @@ export default function DeepLinkController() {
   }, [urlState.tab, activeTab, setActiveTab]);
 
   // Sync URL tag → loaded player (e.g. on browser back/forward).
+  //
+  // Additional `lastFetchedTagRef` guard: defensively suppress a second
+  // `handleQuery` call for the *same target tag*, even if the effect
+  // re-fires for unrelated reasons (consumer re-render, parent state
+  // tick, React Strict Mode double-invoke). Without it, an unstable
+  // upstream dep used to cascade into ~10-80 redundant fetches/s.
+  const lastFetchedTagRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!urlState.tag) return;
-    if (isLoading) return;
-    const currentTag = playerData?.tag?.replace(/^#/, "").toUpperCase();
-    if (urlState.tag !== currentTag) {
-      handleQuery(`#${urlState.tag}`, { navigateHome: false });
+    if (!urlState.tag) {
+      // URL no longer carries a tag → arm the ref for the next deep link.
+      lastFetchedTagRef.current = null;
+      return;
     }
+    if (isLoading) return;
+    const wanted = urlState.tag.toUpperCase();
+    const current = playerData?.tag?.replace(/^#/, "").toUpperCase();
+    if (wanted === current) {
+      lastFetchedTagRef.current = wanted;
+      return;
+    }
+    if (lastFetchedTagRef.current === wanted) return;
+    lastFetchedTagRef.current = wanted;
+    handleQuery(`#${wanted}`, { navigateHome: false });
   }, [urlState.tag, playerData?.tag, isLoading, handleQuery]);
 
   // Find brawler in player data for global sheet.
