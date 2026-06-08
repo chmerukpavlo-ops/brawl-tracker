@@ -27,7 +27,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
+    "@google/genai": "^2.8.0",
     "@sentry/node": "^10.55.0",
     "@sentry/react": "^10.55.0",
     "@tailwindcss/vite": "^4.1.14",
